@@ -53,6 +53,7 @@ void load_rom(char *filename) {
 
     if (filelen > (RAM_SIZE - PROG_OFFSET)) {
         fprintf(stderr, "Error ROM too large to load");
+        return;
     }
 
     fread(&buffer, filelen, 1, file);
