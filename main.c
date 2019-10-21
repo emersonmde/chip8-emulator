@@ -13,11 +13,11 @@ int main() {
     dump_heap();
 
     // TODO: Switched to ;;
-    // for (int i = 0; i < 30; i++) {
-    //     cpu_cycle();
-    // }
-    test_opcode(0x6299);
-    test_opcode(0x8120);
+    for (int i = 0; i < (RAM_SIZE - PROG_OFFSET); i++) {
+        cpu_cycle();
+    }
+    // test_opcode(0x6299);
+    // test_opcode(0x8120);
 
     free_cpu();
     return 0;

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 processor *init_cpu() {
     _cpu = malloc(sizeof(processor));
@@ -64,21 +65,21 @@ void load_rom(char *filename) {
 // See https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
 void (*opcode_lookup[16])(uint16_t opcode) = {
         cpu_op_clr_ret,
-        cpu_no_op,
+        cpu_op_jmp,
         cpu_op_call,
-        cpu_no_op,
-        cpu_no_op,
-        cpu_no_op,
+        cpu_op_skip_if,
+        cpu_op_skip_not,
+        cpu_op_skip_eq,
         cpu_op_mov,
-        cpu_no_op,
+        cpu_op_add_val,
         cpu_lookup_math,
         cpu_op_skip_ne,
         cpu_op_set_i,
-        cpu_no_op,
-        cpu_no_op,
-        cpu_no_op,
-        cpu_no_op,
-        cpu_no_op,
+        cpu_op_jump_offset,
+        cpu_op_rand,
+        cpu_op_draw,
+        cpu_op_key_skip_eq,
+        cpu_op_misc,
 };
 
 void (*opcode_math_lookup[16])(uint8_t vx, uint8_t vy) = {
@@ -151,11 +152,40 @@ void cpu_op_clr_ret(uint16_t opcode) {
     printf("clr_ret: %04x\n", opcode & 0x0FFF);
 }
 
+// 0x1NNN jump to address NNN
+void cpu_op_jmp(uint16_t opcode) {
+    printf("jump: %04x\n", opcode & 0x0FFF);
+    _cpu->pc = opcode & 0x0FFF;
+}
+
 // 0x2NNN call function NNN
 void cpu_op_call(uint16_t opcode) {
     printf("call: %04x\n", opcode & 0x0FFF);
     stack_push(_cpu->pc);
     _cpu->pc = opcode & 0x0FFF;
+}
+
+// 0x3XNN skip next instruction if VX == NN
+void cpu_op_skip_if(uint16_t opcode) {
+    if (_cpu->registers[opcode & 0x0F00] == (opcode & 0x00FF)) {
+        _cpu->pc += 2;
+    }
+}
+
+// 0x4XNN skip next instruction if VX != NN
+void cpu_op_skip_not(uint16_t opcode) {
+    if (_cpu->registers[opcode & 0x0F00] != (opcode & 0x00FF)) {
+        _cpu->pc += 2;
+    }
+}
+
+// 0x5XY0 skip next instruction if VX == VY
+void cpu_op_skip_eq(uint16_t opcode) {
+    uint8_t vx = (opcode & 0x0F00) >> 8;
+    uint8_t vy = (opcode & 0x00F0) >> 4;
+    if (_cpu->registers[vx] == _cpu->registers[vy]) {
+        _cpu->pc += 2;
+    }
 }
 
 // 0x6XNN set VX to NN
@@ -164,6 +194,11 @@ void cpu_op_mov(uint16_t opcode) {
     uint8_t val = opcode & 0x00FF;
     _cpu->registers[reg] = val;
     printf("mov %04x, reg: %04x, %04x\n", val, reg, opcode);
+}
+
+// 0x7XNN VX += NN
+void cpu_op_add_val(uint16_t opcode) {
+    _cpu->registers[opcode & 0x0F00] = opcode & 0x00FF;
 }
 
 // 0x8XY0 set vx to the value of vy
@@ -232,3 +267,80 @@ void cpu_op_set_i(uint16_t opcode) {
     _cpu->i = opcode & 0x0FFF;
 }
 
+// 0xBNNN jump to address NNN + V0
+void cpu_op_jump_offset(uint16_t opcode) {
+    _cpu->pc = _cpu->registers[0] + (opcode & 0x0FFF);
+}
+
+// 0xCXNN set VX to rand() & NN
+void cpu_op_rand(uint16_t opcode) {
+    uint8_t reg = opcode & 0xF000;
+    uint8_t val = opcode & 0x00FF;
+    srand(time(0));
+    _cpu->registers[reg] = (rand() % 0xFF) & val;
+}
+
+// 0xDXYN draw sprite at (VX, VY) that has a width of 8 bits
+// each row starts at I and sets VF if pixel is changed
+void cpu_op_draw(uint16_t opcode) {
+    printf("draw: %02x ", opcode);
+    cpu_no_op(opcode);
+}
+
+// 0xEX9E skip if key in VX is pressed
+void cpu_op_key_skip_eq(uint16_t opcode) {
+    printf("skip if key press: %02x ", opcode);
+    cpu_no_op(opcode);
+}
+
+
+// 0xFX07 set VX to the value of the delay timer
+// 0xFX0A wait for keypress then store in VX
+// 0xFX15 set delay timer to VX
+// 0xFX18 set sound timer to VX
+// 0xFX1E I += VX
+// 0xFX29 Sets I to the location of the sprite for the character in VX; characters 0-F are represented by a 4x5 font.
+// 0xFX33 stores the binary-coded decimal representation of VX
+// 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
+// 0xFX65 fills V0 to VX (including VX) with values from memory starting at address I without modifying I
+void cpu_op_misc(int16_t opcode) {
+    uint8_t reg = opcode & 0x0F00;
+    switch (opcode & 0x00FF) {
+        // 0xFX07 set VX to the value of the delay timer
+        case 0x07:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX0A wait for keypress then store in VX
+        case 0x0A:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX15 set delay timer to VX
+        case 0x15:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX18 set sound timer to VX
+        case 0x18:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX1E I += VX
+        case 0x1E:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX29 Sets I to the location of the sprite for the character in VX; characters 0-F are represented by a 4x5 font.
+        case 0x29:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX33 stores the binary-coded decimal representation of VX
+        case 0x33:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
+        case 0x55:
+            cpu_no_op(opcode);
+            break;
+        // 0xFX65 fills V0 to VX (including VX) with values from memory starting at address I without modifying I
+        case 0x65:
+            cpu_no_op(opcode);
+            break;
+    }
+}
