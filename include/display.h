@@ -19,7 +19,11 @@ display *_display;
 
 void *init_display();
 void free_display();
+
+uint32_t get_pixel(int x, int y);
+void set_pixel(int x, int y, uint32_t pixel);
 void test_pixel(uint8_t x, uint8_t y);
+
 
 
 #endif //CHIP8_EMULATOR_DISPLAY_H

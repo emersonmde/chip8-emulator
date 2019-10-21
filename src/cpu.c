@@ -272,7 +272,8 @@ void cpu_op_draw(uint16_t opcode) {
         for (uint16_t col = 0; col < 8; col++) {
             // Start at first bit of pixels, if its a 1 write it to display
             if ((pixels & (0x80 >> col)) != 0) {
-                // if ()
+                // Set pixel ^= 1
+                // TODO: Use array for pixels, then set surface accordingly
             }
         }
     }
