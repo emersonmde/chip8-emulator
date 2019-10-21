@@ -8,7 +8,7 @@ find_package(SDL2 REQUIRED)
 #find_package(SDL2_image REQUIRED)
 #find_package(SDL2_ttf REQUIRED)
 
-add_executable(chip8_emulator main.c src/cpu.c include/cpu.h src/memory.c include/memory.h)
+add_executable(chip8_emulator main.c src/cpu.c include/cpu.h src/memory.c include/memory.h src/display.c include/display.h src/io.c include/io.h)
 include_directories(include)
 
 include_directories(${SDL2_INCLUDE_DIR})

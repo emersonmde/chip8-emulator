@@ -1,6 +1,9 @@
 #include <cpu.h>
+#include <io.h>
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <SDL.h>
 
 int main() {
     processor *cpu = init_cpu();
@@ -10,12 +13,28 @@ int main() {
     }
 
     load_rom("assets/pong.rom");
-    dump_heap();
+    // dump_heap();
 
-    // TODO: Switched to ;;
-    for (int i = 0; i < (RAM_SIZE - PROG_OFFSET); i++) {
-        cpu_cycle();
+    for (int i = 0; i < DISP_WIDTH; i++) {
+        for (int j = 0; j < DISP_HEIGHT; j++) {
+            test_pixel(i, j);
+        }
     }
+
+    bool quit = false;
+    SDL_Event e;
+    while (!quit) {
+        while( SDL_PollEvent( &e ) != 0 ) {
+            if( e.type == SDL_QUIT ) {
+                quit = true;
+            }
+        }
+        SDL_Delay(1000);
+    }
+    // TODO: Switched to ;;
+    // for (int i = 0; i < (RAM_SIZE - PROG_OFFSET); i++) {
+    //     cpu_cycle();
+    // }
     // test_opcode(0x6299);
     // test_opcode(0x8120);
 

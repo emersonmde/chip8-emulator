@@ -8,6 +8,7 @@
 #include <memory.h>
 
 #include <stdint.h>
+#include "display.h"
 
 typedef struct {
     // Registers V0-VF
@@ -23,6 +24,7 @@ typedef struct {
     uint8_t sound_timer;
 
     memory *ram;
+    display *disp;
 } processor;
 processor *_cpu;
 

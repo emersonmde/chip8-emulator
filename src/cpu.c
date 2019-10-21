@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <display.h>
 
 processor *init_cpu() {
     _cpu = malloc(sizeof(processor));
@@ -15,11 +16,10 @@ processor *init_cpu() {
         return NULL;
     }
 
-    memory *ram = init_memory();
-    if (ram == NULL) {
+    _cpu->ram = init_memory();
+    if (_cpu->ram == NULL) {
         return NULL;
     }
-    _cpu->ram = ram;
 
     memset(_cpu->registers, 0, sizeof(_cpu->registers) / sizeof(_cpu->registers[0]));
     memset(_cpu->keys, 0, sizeof(_cpu->keys) / sizeof(_cpu->keys[0]));
@@ -30,36 +30,19 @@ processor *init_cpu() {
     _cpu->delay_timer = 0;
     _cpu->sound_timer = 0;
 
+    _cpu->disp = init_display();
+
+    if (_cpu->disp == NULL) {
+        return NULL;
+    }
+
     return _cpu;
 }
 
 void free_cpu() {
     free_memory();
+    free_display();
     free(_cpu);
-}
-
-void load_rom(char *filename) {
-    FILE *file;
-    uint8_t buffer[RAM_SIZE - PROG_OFFSET];
-    ssize_t filelen;
-
-    file = fopen(filename, "rb");
-    fseek(file, 0, SEEK_END);
-    filelen = ftell(file);
-    if (filelen < 0) {
-        fprintf(stderr, "Error determining ROM size\n");
-        return;
-    }
-    rewind(file);
-
-    if (filelen > (RAM_SIZE - PROG_OFFSET)) {
-        fprintf(stderr, "Error ROM too large to load");
-        return;
-    }
-
-    fread(&buffer, filelen, 1, file);
-    load_prog(buffer, filelen);
-    printf("Loaded %s into program memory\n", filename);
 }
 
 // See https://en.wikipedia.org/wiki/CHIP-8#Opcode_table
@@ -102,15 +85,10 @@ void (*opcode_math_lookup[16])(uint8_t vx, uint8_t vy) = {
 };
 
 void cpu_cycle() {
-    // uint16_t (uint16_t)((uint16_t)_ram->heap[loc] << (uint16_t)8) | (uint16_t)_ram->heap[loc + 1];
-
-    // All the casts to make clang happy
     uint16_t opcode = ((uint16_t)fetch(_cpu->pc) << 8) | fetch(_cpu->pc + 1);
     _cpu->pc += 2;
 
     opcode_lookup[(opcode & 0xF000) >> 12](opcode);
-    // Decode Opcode
-    // Execute Opcode
 
     // Update timers
 }
@@ -141,15 +119,15 @@ void cpu_op_clr_ret(uint16_t opcode) {
     switch(opcode) {
         case 0x00E0:
             // clr
-            cpu_no_op(opcode);
+            // cpu_no_op(opcode);
             break;
         case 0x00EE:
             _cpu->pc = stack_pop();
             break;
         default:
-            cpu_no_op(opcode);
+            // cpu_no_op(opcode);
+            break;
     }
-    printf("clr_ret: %04x\n", opcode & 0x0FFF);
 }
 
 // 0x1NNN jump to address NNN
@@ -167,14 +145,14 @@ void cpu_op_call(uint16_t opcode) {
 
 // 0x3XNN skip next instruction if VX == NN
 void cpu_op_skip_if(uint16_t opcode) {
-    if (_cpu->registers[opcode & 0x0F00] == (opcode & 0x00FF)) {
+    if (_cpu->registers[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF)) {
         _cpu->pc += 2;
     }
 }
 
 // 0x4XNN skip next instruction if VX != NN
 void cpu_op_skip_not(uint16_t opcode) {
-    if (_cpu->registers[opcode & 0x0F00] != (opcode & 0x00FF)) {
+    if (_cpu->registers[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF)) {
         _cpu->pc += 2;
     }
 }
@@ -198,7 +176,7 @@ void cpu_op_mov(uint16_t opcode) {
 
 // 0x7XNN VX += NN
 void cpu_op_add_val(uint16_t opcode) {
-    _cpu->registers[opcode & 0x0F00] = opcode & 0x00FF;
+    _cpu->registers[(opcode & 0x0F00) >> 8] = opcode & 0x00FF;
 }
 
 // 0x8XY0 set vx to the value of vy
@@ -274,17 +252,30 @@ void cpu_op_jump_offset(uint16_t opcode) {
 
 // 0xCXNN set VX to rand() & NN
 void cpu_op_rand(uint16_t opcode) {
-    uint8_t reg = opcode & 0xF000;
+    uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t val = opcode & 0x00FF;
     srand(time(0));
     _cpu->registers[reg] = (rand() % 0xFF) & val;
 }
 
-// 0xDXYN draw sprite at (VX, VY) that has a width of 8 bits
+// 0xDXYN draw sprite at (VX, VY) that has a width of 8 bits and height N
 // each row starts at I and sets VF if pixel is changed
 void cpu_op_draw(uint16_t opcode) {
-    printf("draw: %02x ", opcode);
-    cpu_no_op(opcode);
+    uint8_t x = _cpu->registers[(opcode & 0x0F00) >> 8];
+    uint8_t y = _cpu->registers[(opcode & 0x00F0) >> 4];
+    uint8_t h = opcode & 0x000F;
+    uint8_t pixels;
+
+    _cpu->registers[0xF] = 0;
+    for (uint16_t row = 0; row < h; row++) {
+        pixels = fetch(_cpu->i + row);
+        for (uint16_t col = 0; col < 8; col++) {
+            // Start at first bit of pixels, if its a 1 write it to display
+            if ((pixels & (0x80 >> col)) != 0) {
+                // if ()
+            }
+        }
+    }
 }
 
 // 0xEX9E skip if key in VX is pressed
@@ -304,7 +295,7 @@ void cpu_op_key_skip_eq(uint16_t opcode) {
 // 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
 // 0xFX65 fills V0 to VX (including VX) with values from memory starting at address I without modifying I
 void cpu_op_misc(int16_t opcode) {
-    uint8_t reg = opcode & 0x0F00;
+    uint8_t reg = (opcode & 0x0F00) >> 8;
     switch (opcode & 0x00FF) {
         // 0xFX07 set VX to the value of the delay timer
         case 0x07:
