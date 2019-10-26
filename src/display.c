@@ -45,9 +45,9 @@ void _set_pixel(int x, int y, uint32_t pixel) {
 }
 
 void set_pixel(uint8_t x, uint8_t y) {
-    if (SDL_MUSTLOCK(_display->window_surface)) {
-        SDL_UnlockSurface(_display->window_surface);
-    }
+    // if (SDL_MUSTLOCK(_display->window_surface)) {
+    //     SDL_UnlockSurface(_display->window_surface);
+    // }
 
     uint32_t *pixels = (uint32_t *)_display->window_surface->pixels;
     for (int i = x * DISP_SCALE; i < (x * DISP_SCALE) + DISP_SCALE; i++) {
@@ -56,8 +56,20 @@ void set_pixel(uint8_t x, uint8_t y) {
         }
     }
 
+    // if (SDL_MUSTLOCK(_display->window_surface)) {
+    //     SDL_LockSurface(_display->window_surface);
+    // }
+    // SDL_UpdateWindowSurface(_display->window);
+}
+
+void update_window() {
     if (SDL_MUSTLOCK(_display->window_surface)) {
         SDL_LockSurface(_display->window_surface);
     }
+
     SDL_UpdateWindowSurface(_display->window);
+
+    if (SDL_MUSTLOCK(_display->window_surface)) {
+        SDL_UnlockSurface(_display->window_surface);
+    }
 }

@@ -100,6 +100,8 @@ void cpu_cycle() {
         }
         _cpu->sound_timer--;
     }
+
+    update_window();
 }
 
 void test_opcode(uint16_t opcode) {

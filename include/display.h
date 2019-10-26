@@ -23,6 +23,7 @@ void free_display();
 uint32_t get_pixel(int x, int y);
 void set_pixel(uint8_t x, uint8_t y);
 
+void update_window();
 
 
 #endif //CHIP8_EMULATOR_DISPLAY_H
