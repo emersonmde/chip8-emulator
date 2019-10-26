@@ -19,6 +19,29 @@ memory *init_memory() {
 
     _ram->sp = 0;
 
+    uint8_t fontset[80] = {
+            0xF0, 0x90, 0x90, 0x90, 0xF0,
+            0x20, 0x60, 0x20, 0x20, 0x70,
+            0xF0, 0x10, 0xF0, 0x80, 0xF0,
+            0xF0, 0x10, 0xF0, 0x10, 0xF0,
+            0x90, 0x90, 0xF0, 0x10, 0x10,
+            0xF0, 0x80, 0xF0, 0x10, 0xF0,
+            0xF0, 0x80, 0xF0, 0x90, 0xF0,
+            0xF0, 0x10, 0x20, 0x40, 0x40,
+            0xF0, 0x90, 0xF0, 0x90, 0xF0,
+            0xF0, 0x90, 0xF0, 0x10, 0xF0,
+            0xF0, 0x90, 0xF0, 0x90, 0x90,
+            0xE0, 0x90, 0xE0, 0x90, 0xE0,
+            0xF0, 0x80, 0x80, 0x80, 0xF0,
+            0xE0, 0x90, 0x90, 0x90, 0xE0,
+            0xF0, 0x80, 0xF0, 0x80, 0xF0,
+            0xF0, 0x80, 0xF0, 0x80, 0x80
+    };
+
+    for (int i = 0; i < 80; i++) {
+        _ram->heap[i + FONT_OFFSET] = fontset[i];
+    }
+
     return _ram;
 }
 
@@ -30,12 +53,16 @@ uint8_t fetch(uint16_t loc) {
     return _ram->heap[loc];
 }
 
+void store(uint16_t loc, uint8_t value) {
+    _ram->heap[loc] = value;
+}
+
 void stack_push(uint16_t pc) {
     _ram->stack[_ram->sp++] = pc;
 }
 
 uint16_t stack_pop() {
-    return _ram->stack[_ram->sp--];
+    return _ram->stack[--_ram->sp];
 }
 
 
@@ -57,4 +84,17 @@ void dump_heap() {
         }
     }
     printf("\nEND HEAP\n");
+}
+void dump_stack() {
+    printf("BEGIN STACK\n");
+    for (int i = 0; i < STACK_SIZE; i++) {
+        // if (i % 32 == 0) {
+        //     printf("%5d: ", i);
+        // }
+        printf("%04x\n", _ram->stack[i]);
+        // if ((i + 1) % 32 == 0) {
+        //     printf("\n");
+        // }
+    }
+    printf("\nEND STACK\n");
 }

@@ -90,7 +90,16 @@ void cpu_cycle() {
 
     opcode_lookup[(opcode & 0xF000) >> 12](opcode);
 
-    // Update timers
+    if (_cpu->delay_timer > 0) {
+        _cpu->delay_timer--;
+    }
+
+    if (_cpu->sound_timer > 0) {
+        if (_cpu->sound_timer == 1) {
+            printf("=========== BEEP ============\n");
+        }
+        _cpu->sound_timer--;
+    }
 }
 
 void test_opcode(uint16_t opcode) {
@@ -98,7 +107,6 @@ void test_opcode(uint16_t opcode) {
 }
 
 void cpu_lookup_math(uint16_t opcode) {
-    printf("math op: %04x\n", opcode);
     uint8_t vx = (opcode & 0x0F00) >> 8;
     uint8_t vy = (opcode & 0x00F0) >> 4;
     opcode_math_lookup[opcode & 0x000F](vx, vy);
@@ -122,7 +130,9 @@ void cpu_op_clr_ret(uint16_t opcode) {
             // cpu_no_op(opcode);
             break;
         case 0x00EE:
+            dump_stack();
             _cpu->pc = stack_pop();
+            printf("return: %2x\n", _cpu->pc);
             break;
         default:
             // cpu_no_op(opcode);
@@ -132,7 +142,6 @@ void cpu_op_clr_ret(uint16_t opcode) {
 
 // 0x1NNN jump to address NNN
 void cpu_op_jmp(uint16_t opcode) {
-    printf("jump: %04x\n", opcode & 0x0FFF);
     _cpu->pc = opcode & 0x0FFF;
 }
 
@@ -171,7 +180,6 @@ void cpu_op_mov(uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     uint8_t val = opcode & 0x00FF;
     _cpu->registers[reg] = val;
-    printf("mov %04x, reg: %04x, %04x\n", val, reg, opcode);
 }
 
 // 0x7XNN VX += NN
@@ -182,7 +190,6 @@ void cpu_op_add_val(uint16_t opcode) {
 // 0x8XY0 set vx to the value of vy
 void cpu_op_math_set(uint8_t vx, uint8_t vy) {
     _cpu->registers[vx] = _cpu->registers[vy];
-    printf("set V%d to V%d\n", vx, vy);
 }
 
 // 0x8XY1 set VX to (VX | VY)
@@ -241,7 +248,6 @@ void cpu_op_skip_ne(uint16_t opcode) {
 
 // 0xANNN set I to NNN
 void cpu_op_set_i(uint16_t opcode) {
-    printf("set i: %04x\n", opcode & 0x0FFF);
     _cpu->i = opcode & 0x0FFF;
 }
 
@@ -272,8 +278,11 @@ void cpu_op_draw(uint16_t opcode) {
         for (uint16_t col = 0; col < 8; col++) {
             // Start at first bit of pixels, if its a 1 write it to display
             if ((pixels & (0x80 >> col)) != 0) {
-                // Set pixel ^= 1
-                // TODO: Use array for pixels, then set surface accordingly
+                if (get_pixel(x + col, y + row) != 0) {
+                    _cpu->registers[0xF] = 1;
+                }
+
+                set_pixel(x + col, y + row);
             }
         }
     }
@@ -281,7 +290,6 @@ void cpu_op_draw(uint16_t opcode) {
 
 // 0xEX9E skip if key in VX is pressed
 void cpu_op_key_skip_eq(uint16_t opcode) {
-    printf("skip if key press: %02x ", opcode);
     cpu_no_op(opcode);
 }
 
@@ -300,7 +308,7 @@ void cpu_op_misc(int16_t opcode) {
     switch (opcode & 0x00FF) {
         // 0xFX07 set VX to the value of the delay timer
         case 0x07:
-            cpu_no_op(opcode);
+            _cpu->registers[reg] = _cpu->delay_timer;
             break;
         // 0xFX0A wait for keypress then store in VX
         case 0x0A:
@@ -308,19 +316,20 @@ void cpu_op_misc(int16_t opcode) {
             break;
         // 0xFX15 set delay timer to VX
         case 0x15:
-            cpu_no_op(opcode);
+            _cpu->delay_timer = _cpu->registers[reg];
             break;
         // 0xFX18 set sound timer to VX
         case 0x18:
-            cpu_no_op(opcode);
+            _cpu->sound_timer = _cpu->registers[reg];
             break;
         // 0xFX1E I += VX
         case 0x1E:
-            cpu_no_op(opcode);
+            _cpu->i += _cpu->registers[reg];
             break;
         // 0xFX29 Sets I to the location of the sprite for the character in VX; characters 0-F are represented by a 4x5 font.
         case 0x29:
-            cpu_no_op(opcode);
+            printf("set char: %2x\n", _cpu->registers[reg]);
+            _cpu->i = FONT_OFFSET + (_cpu->registers[reg] * 4);
             break;
         // 0xFX33 stores the binary-coded decimal representation of VX
         case 0x33:
@@ -328,11 +337,15 @@ void cpu_op_misc(int16_t opcode) {
             break;
         // 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
         case 0x55:
-            cpu_no_op(opcode);
+            for (int i = 0; i < reg; i++) {
+                store(_cpu->i + i, _cpu->registers[i]);
+            }
             break;
         // 0xFX65 fills V0 to VX (including VX) with values from memory starting at address I without modifying I
         case 0x65:
-            cpu_no_op(opcode);
+            for (int i = 0; i < reg; i++) {
+                _cpu->registers[i] = fetch(_cpu->i + i);
+            }
             break;
     }
 }

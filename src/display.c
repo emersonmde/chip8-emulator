@@ -33,10 +33,10 @@ uint32_t get_pixel(int x, int y) {
     uint32_t *pixels = (uint32_t *)_display->window_surface->pixels;
 
     //Get the requested pixel
-    return pixels[(y * _display->window_surface->w) + x];
+    return pixels[(x * DISP_SCALE) + ((_display->window_surface->w * y) * DISP_SCALE)];
 }
 
-void set_pixel(int x, int y, uint32_t pixel) {
+void _set_pixel(int x, int y, uint32_t pixel) {
     //Convert the pixels to 32 bit
     uint32_t *pixels = (uint32_t *)_display->window_surface->pixels;
 
@@ -44,14 +44,15 @@ void set_pixel(int x, int y, uint32_t pixel) {
     pixels[(y * _display->window_surface->w) + x] = pixel;
 }
 
-void test_pixel(uint8_t x, uint8_t y) {
+void set_pixel(uint8_t x, uint8_t y) {
     if (SDL_MUSTLOCK(_display->window_surface)) {
         SDL_UnlockSurface(_display->window_surface);
     }
 
+    uint32_t *pixels = (uint32_t *)_display->window_surface->pixels;
     for (int i = x * DISP_SCALE; i < (x * DISP_SCALE) + DISP_SCALE; i++) {
         for (int j = y * DISP_SCALE; j < (y * DISP_SCALE) + DISP_SCALE; j++) {
-            set_pixel(i, j, ~0x0);
+            pixels[i + (j * _display->window_surface->w)] ^= ~((uint32_t)0);
         }
     }
 
