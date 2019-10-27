@@ -120,6 +120,6 @@ void cpu_op_key_skip_eq(uint16_t opcode);
 // 0xFX33 stores the binary-coded decimal representation of VX
 // 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
 // 0xFX65 fills V0 to VX (including VX) with values from memory starting at address I without modifying I
-void cpu_op_misc(int16_t opcode);
+void cpu_op_misc(uint16_t opcode);
 
 #endif //CHIP8_EMU_CPU_H

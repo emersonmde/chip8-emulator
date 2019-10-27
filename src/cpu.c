@@ -101,7 +101,7 @@ void cpu_cycle() {
         _cpu->sound_timer--;
     }
 
-    update_window();
+    // update_window();
 }
 
 void test_opcode(uint16_t opcode) {
@@ -111,6 +111,7 @@ void test_opcode(uint16_t opcode) {
 void cpu_lookup_math(uint16_t opcode) {
     uint8_t vx = (opcode & 0x0F00) >> 8;
     uint8_t vy = (opcode & 0x00F0) >> 4;
+    printf("math_lookup %01x %01x %01x\n", opcode & 0x000F, vx, vy);
     opcode_math_lookup[opcode & 0x000F](vx, vy);
 }
 
@@ -132,7 +133,6 @@ void cpu_op_clr_ret(uint16_t opcode) {
             // cpu_no_op(opcode);
             break;
         case 0x00EE:
-            dump_stack();
             _cpu->pc = stack_pop();
             printf("return: %2x\n", _cpu->pc);
             break;
@@ -149,7 +149,7 @@ void cpu_op_jmp(uint16_t opcode) {
 
 // 0x2NNN call function NNN
 void cpu_op_call(uint16_t opcode) {
-    printf("call: %04x\n", opcode & 0x0FFF);
+    printf("call: %04x from: %04x\n", opcode & 0x0FFF, _cpu->pc);
     stack_push(_cpu->pc);
     _cpu->pc = opcode & 0x0FFF;
 }
@@ -288,11 +288,13 @@ void cpu_op_draw(uint16_t opcode) {
             }
         }
     }
+
+    update_window();
 }
 
 // 0xEX9E skip if key in VX is pressed
 void cpu_op_key_skip_eq(uint16_t opcode) {
-    cpu_no_op(opcode);
+    // cpu_no_op(opcode);
 }
 
 
@@ -305,7 +307,7 @@ void cpu_op_key_skip_eq(uint16_t opcode) {
 // 0xFX33 stores the binary-coded decimal representation of VX
 // 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
 // 0xFX65 fills V0 to VX (including VX) with values from memory starting at address I without modifying I
-void cpu_op_misc(int16_t opcode) {
+void cpu_op_misc(uint16_t opcode) {
     uint8_t reg = (opcode & 0x0F00) >> 8;
     switch (opcode & 0x00FF) {
         // 0xFX07 set VX to the value of the delay timer
@@ -330,12 +332,13 @@ void cpu_op_misc(int16_t opcode) {
             break;
         // 0xFX29 Sets I to the location of the sprite for the character in VX; characters 0-F are represented by a 4x5 font.
         case 0x29:
-            printf("set char: %2x\n", _cpu->registers[reg]);
             _cpu->i = FONT_OFFSET + (_cpu->registers[reg] * 4);
             break;
         // 0xFX33 stores the binary-coded decimal representation of VX
         case 0x33:
-            cpu_no_op(opcode);
+            store(_cpu->i, _cpu->registers[reg] / 100);
+            store(_cpu->i + 1, (_cpu->registers[reg] / 10) % 10);
+            store(_cpu->i + 1, (_cpu->registers[reg] % 100) % 10);
             break;
         // 0xFX55 stores V0 to VX (including VX) in memory starting at address I without modifying I
         case 0x55:

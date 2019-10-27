@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <errno.h>
+#include <string.h>
 
 
 void load_rom(char *filename) {
@@ -15,17 +17,21 @@ void load_rom(char *filename) {
     ssize_t filelen;
 
     file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error opening file: %s\n", strerror(errno));
+        exit(1);
+    }
     fseek(file, 0, SEEK_END);
     filelen = ftell(file);
     if (filelen < 0) {
         fprintf(stderr, "Error determining ROM size\n");
-        return;
+        exit(1);
     }
     rewind(file);
 
     if (filelen > (RAM_SIZE - PROG_OFFSET)) {
         fprintf(stderr, "Error ROM too large to load");
-        return;
+        exit(1);
     }
 
     fread(&buffer, filelen, 1, file);
